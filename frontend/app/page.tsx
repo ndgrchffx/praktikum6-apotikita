@@ -17,15 +17,18 @@ export default function LoginPage() {
         "http://127.0.0.1:8000/api/auth/login",
         form,
       );
+
       localStorage.setItem("token", res.data.access_token);
+
       Swal.fire({
         icon: "success",
         title: "Login Berhasil!",
         text: "Selamat datang di Apotikita.",
         showConfirmButton: false,
         timer: 1500,
+      }).then(() => {
+        window.location.href = "/dashboard";
       });
-      router.push("/dashboard");
     } catch (err) {
       Swal.fire({
         icon: "error",
