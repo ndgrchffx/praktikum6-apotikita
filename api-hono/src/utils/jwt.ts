@@ -1,17 +1,18 @@
 import jwt from "jsonwebtoken";
 
-const SECRET = "apotikita_secret_123"; // Ganti dengan secret yang aman [cite: 112]
+// Ambil secret dari environment variabel nanti
+const SECRET = "apotikita_super_secret_key_123";
 
-export function generateToken(payload: any) {
-  return jwt.sign(payload, SECRET, {
-    expiresIn: "1h", // Token berlaku selama 1 jam [cite: 118, 119, 120]
-  });
-}
+// Fungsi bikin token buat user yang berhasil login
+export const generateToken = (payload: any) => {
+  return jwt.sign(payload, SECRET, { expiresIn: "1h" });
+};
 
-export function verifyToken(token: string) {
+// Fungsi cek token (dipakai satpam/middleware nanti)
+export const verifyToken = (token: string) => {
   try {
-    return jwt.verify(token, SECRET); // Verifikasi keaslian token [cite: 123, 125]
-  } catch {
-    return null; // Return null jika token tidak valid atau expired [cite: 126, 127]
+    return jwt.verify(token, SECRET);
+  } catch (error) {
+    return null;
   }
-}
+};
