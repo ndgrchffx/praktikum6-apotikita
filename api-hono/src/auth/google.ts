@@ -1,46 +1,52 @@
 import { Hono } from "hono";
 import { googleAuth } from "@hono/oauth-providers/google";
-import { db } from "../db";
 import { generateToken } from "../utils/jwt";
+import { db } from "../db";
 
-export const googleAuthRoute = new Hono();
+const auth = new Hono();
 
-googleAuthRoute.use(
+// Route untuk memicu halaman login Google
+auth.use(
   "/google",
   googleAuth({
-    client_id: process.env.GOOGLE_CLIENT_ID || "", // Ambil dari .env [cite: 186, 317]
-    client_secret: process.env.GOOGLE_CLIENT_SECRET || "", // [cite: 318]
+    client_id: process.env.GOOGLE_CLIENT_ID || "",
+    client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
     scope: ["openid", "email", "profile"],
-    redirect_uri: "http://localhost:3000/auth/google/callback", // Sesuaikan URI [cite: 188]
   }),
 );
 
-googleAuthRoute.get("/google/callback", async (c) => {
-  const userGoogle = c.get("user-google" as any); // Data user dari Google
-  if (!userGoogle) return c.json({ message: "Gagal login Google" }, 400);
+// Route Callback: Tempat Google mengirim data user setelah login berhasil
+auth.get("/google/callback", async (c) => {
+  const user = c.get("user-google" as any);
+  if (!user) return c.json({ message: "Google Auth failed" }, 400);
 
-  const email = userGoogle.email;
-
-  // Cek apakah user sudah ada di database Apotikita kamu [cite: 224]
+  // 1. Cek apakah email user sudah ada di database Laragon kamu
   const [rows]: any = await db.execute("SELECT * FROM users WHERE email = ?", [
-    email,
+    user.email,
   ]);
   let dbUser = rows[0];
 
+  // 2. Jika belum ada (User Baru), daftarkan otomatis ke database
   if (!dbUser) {
-    // Jika belum ada, buat user baru (Registrasi otomatis) [cite: 229, 230]
     const [result]: any = await db.execute(
-      "INSERT INTO users (email, password, role) VALUES (?, ?, ?)",
-      [email, "", "user"], // Password kosong karena login via Google [cite: 232, 233]
+      "INSERT INTO users (email, role, google_id) VALUES (?, ?, ?)",
+      [user.email, "user", user.sub],
     );
-    dbUser = { id: result.insertId, email, role: "user" };
+    dbUser = { id: result.insertId, email: user.email, role: "user" };
   }
 
-  // Buat Token JWT untuk session aplikasi [cite: 240, 246]
+  // 3. Buat "Tiket" JWT untuk session di aplikasi kamu
   const token = generateToken({
     id: dbUser.id,
     email: dbUser.email,
     role: dbUser.role,
   });
-  return c.json({ token, user: dbUser });
+
+  return c.json({
+    message: "Login Berhasil!",
+    token: token,
+    user: dbUser,
+  });
 });
+
+export default auth;
