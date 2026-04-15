@@ -1,0 +1,19 @@
+{
+  "name": "api-hono",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@hono/oauth-providers": "^0.8.5",
+    "dotenv": "^17.4.2",
+    "hono": "^4.12.12",
+    "jsonwebtoken": "^9.0.3",
+    "mysql2": "^3.22.0"
+  }
+}
