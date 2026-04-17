@@ -2,7 +2,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation"; // Cuma tambah useSearchParams di sini
 import Swal from "sweetalert2";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -13,8 +13,55 @@ export default function DashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState("asc");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const [userRole, setUserRole] = useState("user");
 
-  // --- FITUR REFRESH TOKEN (SUDAH DISATUKAN & DIPERBAIKI) ---
+  // --- TAMBAHAN: FUNGSI UNTUK DECODE TOKEN & AMBIL ROLE ---
+  const decodeRole = (token) => {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      setUserRole(payload.role || "user");
+    } catch (e) {
+      setUserRole("user");
+    }
+  };
+
+  // ==========================================
+  // TAMBAHAN: PENANGKAP TOKEN GOOGLE DARI HONO
+  // ==========================================
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const tokenFromUrl = searchParams.get("token");
+
+    if (tokenFromUrl) {
+      // 1. Jika ada token dari Google (URL), simpan dulu!
+      localStorage.setItem("token", tokenFromUrl);
+      decodeRole(tokenFromUrl); // Bongkar role dari token baru
+
+      // 2. Tampilkan popup sukses
+      Swal.fire({
+        icon: "success",
+        title: "Login Google Berhasil!",
+        text: "Selamat datang kembali di Apotikita.",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+
+      // 3. Bersihkan URL dan ambil data
+      router.replace("/dashboard");
+      fetchMedicines();
+    } else if (!token) {
+      // 4. Kalau di storage GAK ADA dan di URL GAK ADA, baru tendang ke login
+      router.push("/");
+    } else {
+      // 5. Kalau sudah ada token di storage, langsung ambil data
+      decodeRole(token); // Bongkar role dari token lama
+      fetchMedicines();
+    }
+  }, [searchParams]);
+  // ==========================================
+
+  // --- FITUR REFRESH TOKEN (KODINGAN ASLI KAMU) ---
   const handleRefreshToken = async () => {
     const token = localStorage.getItem("token");
     if (!token) return;
@@ -25,8 +72,8 @@ export default function DashboardPage() {
         { headers: { Authorization: `Bearer ${token}` } },
       );
       localStorage.setItem("token", res.data.access_token);
+      decodeRole(res.data.access_token); // Update role setelah refresh
 
-      // Notifikasi sukses refresh
       Swal.fire({
         icon: "success",
         title: "Sesi Diperpanjang",
@@ -35,7 +82,7 @@ export default function DashboardPage() {
         showConfirmButton: false,
       });
 
-      fetchMedicines(); // Refresh data setelah token baru didapat
+      fetchMedicines();
     } catch (err) {
       console.error("Sesi habis, silakan login ulang");
       localStorage.removeItem("token");
@@ -56,14 +103,17 @@ export default function DashboardPage() {
       setMedicines(res.data);
     } catch (err) {
       console.error("Gagal mengambil data");
-      if (err.response?.status === 401) router.push("/");
+      //     if (err.response?.status === 401) router.push("/");
     }
   };
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) {
-      router.push("/");
+      // Hanya redirect jika tidak ada token di storage DAN tidak ada di URL
+      if (!searchParams.get("token")) {
+        router.push("/");
+      }
     } else {
       fetchMedicines();
     }
@@ -181,13 +231,17 @@ export default function DashboardPage() {
             <div className="h-2 w-2 bg-purple-400 rounded-full animate-pulse"></div>{" "}
             Dashboard
           </div>
-          <div
-            onClick={() => router.push("/register")}
-            className="p-4 hover:bg-white/5 rounded-2xl cursor-pointer transition flex items-center gap-3 text-blue-100"
-          >
-            Daftar Akun Baru
-          </div>
-          {/* TOMBOL REFRESH TOKEN CAKEP */}
+
+          {/* BUNGKUSAN ADMIN: DAFTAR AKUN BARU */}
+          {userRole === "admin" && (
+            <div
+              onClick={() => router.push("/register")}
+              className="p-4 hover:bg-white/5 rounded-2xl cursor-pointer transition flex items-center gap-3 text-blue-100"
+            >
+              Daftar Akun Baru
+            </div>
+          )}
+
           <div
             onClick={handleRefreshToken}
             className="p-4 hover:bg-white/5 rounded-2xl cursor-pointer transition flex items-center gap-3 text-xs text-blue-300 italic border border-blue-500/30 mt-10"
@@ -242,39 +296,42 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-3xl shadow-lg mb-8 border border-gray-50">
-          <h2 className="text-2xl font-black mb-6 text-blue-900 italic">
-            Input Data Baru
-          </h2>
-          <form onSubmit={handleAdd} className="flex gap-4">
-            <input
-              className="text-black font-semibold border-2 border-gray-50 p-4 rounded-2xl w-full focus:border-blue-500 outline-none transition"
-              placeholder="Nama Obat"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-            />
-            <input
-              className="text-black font-semibold border-2 border-gray-50 p-4 rounded-2xl w-full focus:border-blue-500 outline-none transition"
-              placeholder="Kategori"
-              value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value })}
-              required
-            />
-            <input
-              className="text-black font-semibold border-2 border-gray-50 p-4 rounded-2xl w-48 focus:border-blue-500 outline-none transition"
-              type="number"
-              min="0"
-              placeholder="Harga"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-              required
-            />
-            <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-10 rounded-2xl font-black shadow-lg shadow-blue-200 transition">
-              SIMPAN
-            </button>
-          </form>
-        </div>
+        {/* BUNGKUSAN ADMIN: INPUT DATA BARU */}
+        {userRole === "admin" && (
+          <div className="bg-white p-8 rounded-3xl shadow-lg mb-8 border border-gray-50">
+            <h2 className="text-2xl font-black mb-6 text-blue-900 italic">
+              Input Data Baru
+            </h2>
+            <form onSubmit={handleAdd} className="flex gap-4">
+              <input
+                className="text-black font-semibold border-2 border-gray-50 p-4 rounded-2xl w-full focus:border-blue-500 outline-none transition"
+                placeholder="Nama Obat"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
+              <input
+                className="text-black font-semibold border-2 border-gray-50 p-4 rounded-2xl w-full focus:border-blue-500 outline-none transition"
+                placeholder="Kategori"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                required
+              />
+              <input
+                className="text-black font-semibold border-2 border-gray-50 p-4 rounded-2xl w-48 focus:border-blue-500 outline-none transition"
+                type="number"
+                min="0"
+                placeholder="Harga"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                required
+              />
+              <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-10 rounded-2xl font-black shadow-lg shadow-blue-200 transition">
+                SIMPAN
+              </button>
+            </form>
+          </div>
+        )}
 
         <div className="mb-6">
           <input
@@ -315,19 +372,28 @@ export default function DashboardPage() {
                   <td className="p-6 font-black text-blue-900">
                     Rp {Number(m.price).toLocaleString()}
                   </td>
-                  <td className="p-6 text-center flex gap-3 justify-center">
-                    <button
-                      onClick={() => router.push(`/dashboard/edit/${m.id}`)}
-                      className="bg-yellow-400 text-yellow-900 px-5 py-2 rounded-xl font-black text-xs shadow-md shadow-yellow-100"
-                    >
-                      EDIT
-                    </button>
-                    <button
-                      onClick={() => handleDelete(m.id)}
-                      className="bg-red-100 text-red-600 px-5 py-2 rounded-xl font-black text-xs hover:bg-red-600 hover:text-white transition"
-                    >
-                      HAPUS
-                    </button>
+                  <td className="p-6 text-center">
+                    {/* BUNGKUSAN ADMIN: AKSI EDIT/HAPUS ATAU VIEW ONLY */}
+                    {userRole === "admin" ? (
+                      <div className="flex gap-3 justify-center">
+                        <button
+                          onClick={() => router.push(`/dashboard/edit/${m.id}`)}
+                          className="bg-yellow-400 text-yellow-900 px-5 py-2 rounded-xl font-black text-xs shadow-md shadow-yellow-100"
+                        >
+                          EDIT
+                        </button>
+                        <button
+                          onClick={() => handleDelete(m.id)}
+                          className="bg-red-100 text-red-600 px-5 py-2 rounded-xl font-black text-xs hover:bg-red-600 hover:text-white transition"
+                        >
+                          HAPUS
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 italic text-[10px] font-bold bg-gray-100 px-2 py-1 rounded">
+                        VIEW ONLY
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

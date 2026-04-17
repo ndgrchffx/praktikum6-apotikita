@@ -39,6 +39,11 @@ export default function LoginPage() {
     }
   };
 
+  // Fungsi khusus untuk ke Hono
+  const handleGoogleLogin = () => {
+    window.location.href = "http://localhost:3000/auth/google";
+  };
+
   return (
     <div
       className="flex min-h-screen items-center justify-center p-4 bg-cover bg-center bg-no-repeat"
@@ -46,7 +51,6 @@ export default function LoginPage() {
         backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('/bg-apotikita.png')`,
       }}
     >
-      {/* EFEK GLASSMORPHISM: bg-white/30 + backdrop-blur-md */}
       <div className="bg-white/30 backdrop-blur-md p-10 shadow-2xl rounded-[40px] w-full max-w-md border border-white/20 transform transition hover:scale-[1.01]">
         <div className="text-center mb-8">
           <h2 className="text-4xl font-black italic tracking-tighter text-white drop-shadow-md">
@@ -84,10 +88,38 @@ export default function LoginPage() {
             />
           </div>
 
-          <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-2xl font-black shadow-xl hover:opacity-90 transition-all active:scale-95 mt-4 text-sm tracking-widest">
+          <button
+            type="submit"
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-2xl font-black shadow-xl hover:opacity-90 transition-all active:scale-95 mt-4 text-sm tracking-widest"
+          >
             MASUK SEKARANG
           </button>
         </form>
+
+        {/* --- BAGIAN OPSI GOOGLE (DITAMBAHKAN DI SINI) --- */}
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-white/20"></div>
+          </div>
+          <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-widest">
+            <span className="bg-transparent px-2 text-white/60 backdrop-blur-sm">
+              Atau
+            </span>
+          </div>
+        </div>
+
+        <button
+          onClick={handleGoogleLogin}
+          className="w-full bg-white/10 hover:bg-white/20 text-white border border-white/30 p-4 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all active:scale-95 text-xs tracking-widest shadow-lg"
+        >
+          <img
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+            alt="Google"
+            className="w-5 h-5"
+          />
+          MASUK DENGAN GOOGLE
+        </button>
+        {/* --- AKHIR BAGIAN GOOGLE --- */}
 
         <div className="mt-8 text-center text-sm font-medium text-white/90 drop-shadow-md">
           Belum punya akun?{" "}
