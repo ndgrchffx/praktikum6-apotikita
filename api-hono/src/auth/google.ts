@@ -5,48 +5,75 @@ import { db } from "../db";
 
 const auth = new Hono();
 
-// Route untuk memicu halaman login Google
 auth.use(
-  "/google",
+  "/google/*",
   googleAuth({
     client_id: process.env.GOOGLE_CLIENT_ID || "",
     client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
     scope: ["openid", "email", "profile"],
-  }),
+    redirect_uri: "http://localhost:3000/auth/google/callback", 
+  })
 );
 
-// Route Callback: Tempat Google mengirim data user setelah login berhasil
 auth.get("/google/callback", async (c) => {
-  const user = c.get("user-google" as any);
-  if (!user) return c.json({ message: "Google Auth failed" }, 400);
+  const user = c.get("user-google") as any || c.get("user") as any;
 
-  // 1. Cek apakah email user sudah ada di database Laragon kamu
-  const [rows]: any = await db.execute("SELECT * FROM users WHERE email = ?", [
-    user.email,
-  ]);
-  let dbUser = rows[0];
+  console.log("Data dari Google:", user);
 
-  // 2. Jika belum ada (User Baru), daftarkan otomatis ke database
-  if (!dbUser) {
-    const [result]: any = await db.execute(
-      "INSERT INTO users (email, role, google_id) VALUES (?, ?, ?)",
-      [user.email, "user", user.sub],
-    );
-    dbUser = { id: result.insertId, email: user.email, role: "user" };
+  if (!user) {
+    return c.json({ 
+      message: "Google Auth failed", 
+      detail: "Pastikan library @hono/oauth-providers sudah terinstall" 
+    }, 400);
   }
 
-  // 3. Buat "Tiket" JWT untuk session di aplikasi kamu
-  const token = generateToken({
-    id: dbUser.id,
-    email: dbUser.email,
-    role: dbUser.role,
-  });
+  try {
+    // 1. Cek email di database
+    const [rows]: any = await db.execute("SELECT * FROM users WHERE email = ?", [
+      user.email,
+    ]);
+    let dbUser = rows[0];
 
-  return c.json({
-    message: "Login Berhasil!",
-    token: token,
-    user: dbUser,
-  });
+    // 2. Jika user baru, tentukan role berdasarkan email
+    if (!dbUser) {
+      // --- LOGIKA ROLE ADMIN ---
+      let role = "user"; // Default semua adalah user biasa
+      
+      // Ganti email di bawah ini dengan email yang kamu mau jadikan Admin
+      if (user.email === "admin@mail.com" || user.email === "nailasalsabila190506@gmail.com") {
+        role = "admin";
+      }
+      // --------------------------
+
+      const [result]: any = await db.execute(
+        "INSERT INTO users (email, role, google_id, name) VALUES (?, ?, ?, ?)", 
+        [user.email, role, user.sub || user.id, user.name]
+      );
+      
+      dbUser = { 
+        id: result.insertId, 
+        email: user.email, 
+        role: role, // Masukkan role yang sudah ditentukan
+        nama: user.name 
+      };
+    }
+
+    // 3. Buat JWT Token (Role otomatis masuk ke dalam Payload JWT)
+    const token = generateToken({
+      id: dbUser.id,
+      email: dbUser.email,
+      role: dbUser.role, // Inilah yang akan dicek oleh middleware "admin" kamu nanti
+    });
+
+    return c.json({
+      message: "Login Berhasil!",
+      token: token,
+      user: dbUser,
+    });
+  } catch (error: any) {
+    console.error("Database Error:", error.message);
+    return c.json({ message: "Database Error", error: error.message }, 500);
+  }
 });
 
 export default auth;
