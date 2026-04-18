@@ -17,9 +17,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/*',
         ]);
 
-        // Membuka izin untuk Next.js (CORS)
-        $middleware->statefulApi();
+        // TAMBAHKAN INI: Daftarkan alias untuk middleware Admin kamu
+        $middleware->alias([
+            'isAdmin' => \App\Http\Middleware\AdminMiddleware::class,
+        ]);
     })
+
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(function ($request, $e) {
             if ($request->is('api/*')) {
