@@ -19,6 +19,6 @@ class User extends Authenticatable implements JWTSubject // Tambahkan implements
     {
         return [];
     }
-
+    protected $table = 'users';
     protected $fillable = ['name', 'email', 'password', 'role'];
 }

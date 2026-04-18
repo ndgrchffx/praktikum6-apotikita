@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
@@ -39,7 +40,8 @@ class AuthController extends Controller
     {
         $credentials = request(['email', 'password']);
 
-        if (! $token = auth()->attempt($credentials)) {
+        // TAMBAHKAN 'api' di dalem kurung auth
+        if (! $token = auth('api')->attempt($credentials)) {
             return response()->json(['error' => 'Email atau password salah'], 401);
         }
 

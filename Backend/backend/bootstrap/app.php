@@ -17,6 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/*',
         ]);
 
+        $middleware->statefulApi();
+
         // TAMBAHKAN INI: Daftarkan alias untuk middleware Admin kamu
         $middleware->alias([
             'isAdmin' => \App\Http\Middleware\AdminMiddleware::class,
