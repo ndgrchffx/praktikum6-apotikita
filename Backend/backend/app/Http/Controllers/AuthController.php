@@ -6,69 +6,83 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Auth;
 
 class AuthController extends Controller
 {
-    // Fitur Register 
+    // Register
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:6',
         ]);
 
         if ($validator->fails()) {
-            return response()->json($validator->errors()->toJson(), 400);
+            return response()->json($validator->errors(), 422);
         }
 
         $user = User::create([
-            'name' => $request->get('name'),
-            'email' => $request->get('email'),
-            'password' => Hash::make($request->get('password')),
+            'name'     => $request->name,
+            'email'    => $request->email,
+            'password' => Hash::make($request->password),
         ]);
 
+        $token = auth('api')->login($user);
+
         return response()->json([
-            'message' => 'User successfully registered',
-            'user' => $user
+            'message'      => 'User berhasil didaftarkan',
+            'user'         => $user,
+            'access_token' => $token,
+            'token_type'   => 'bearer',
+            'expires_in'   => auth('api')->factory()->getTTL() * 60,
         ], 201);
     }
 
-    // Fitur Login (Mendapatkan JWT Token)
-    public function login()
+    // Login
+    public function login(Request $request)
     {
-        $credentials = request(['email', 'password']);
+        $credentials = $request->only('email', 'password');
 
-        // TAMBAHKAN 'api' di dalem kurung auth
-        if (! $token = auth('api')->attempt($credentials)) {
+        if (!$token = auth('api')->attempt($credentials)) {
             return response()->json(['error' => 'Email atau password salah'], 401);
         }
 
         return $this->respondWithToken($token);
     }
 
+    // Me — data user yang sedang login
+    public function me()
+    {
+        return response()->json(auth('api')->user());
+    }
 
-    // Fitur Logout 
+    // Logout
     public function logout()
     {
-        auth()->logout();
-        return response()->json(['message' => 'Berhasil keluar']);
+        auth('api')->logout();  // ← PERBAIKAN: tambah 'api'
+        return response()->json(['message' => 'Berhasil logout']);
     }
 
-    // Fitur Refresh Token 
+    // Refresh Token
     public function refresh()
     {
-        return $this->respondWithToken(auth()->refresh());
+        try {
+            $token = auth('api')->refresh();  // ← PERBAIKAN: tambah 'api'
+            return $this->respondWithToken($token);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Token tidak valid atau sudah expired'], 401);
+        }
     }
 
-    // Format Response Token 
+    // Format Response Token
     protected function respondWithToken($token)
     {
         return response()->json([
             'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => auth()->factory()->getTTL() * 60
+            'token_type'   => 'bearer',
+            'expires_in'   => auth('api')->factory()->getTTL() * 60,
+            'user'         => auth('api')->user(),
         ]);
     }
 }

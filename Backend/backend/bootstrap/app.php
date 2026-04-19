@@ -12,24 +12,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Mengizinkan permintaan API tanpa proteksi CSRF
-        $middleware->validateCsrfTokens(except: [
-            'api/*',
-        ]);
-
-        $middleware->statefulApi();
-
-        // TAMBAHKAN INI: Daftarkan alias untuk middleware Admin kamu
+        // Daftarkan alias middleware (cukup SEKALI)
         $middleware->alias([
             'isAdmin' => \App\Http\Middleware\AdminMiddleware::class,
         ]);
     })
-
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->shouldRenderJsonWhen(function ($request, $e) {
-            if ($request->is('api/*')) {
-                return true;
-            }
+            return $request->is('api/*');
         });
     })
     ->create();
